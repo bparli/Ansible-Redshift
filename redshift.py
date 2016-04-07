@@ -1,75 +1,173 @@
 #!/usr/bin/python
 
-#DOCUMENTATION = '''
-'''module: redshift_cluster
-short_description: add or delete Route53 zones
-description:
-    - Creates and deletes Route53 private and public zones
-version_added: "2.0"
+DOCUMENTATION = '''
+---
+module: redshift
+description: add or delete Redshift Clusters and Redshift snapshots.  Requires boto3 to be installed and configured
 options:
-    id:
+    Command:
         description:
-            - "This is the unique key that identifies a cluster. This parameter is stored as a lowercase string. "
+            - The Redshift task, create Redshift cluster, delete Redshift cluster, delete snapshot, snapshot Redshift cluster
         required: true
-    command:
-        description: Create or delete
-        required: true
-        default: create
-        choices: [ "create", "delete" ]
-    database:
+        choices: [ 'create', 'delete', 'snapshot']
+    DBName:
         description:
-            - Optional. A default database named dev is created for the cluster. Optionally, specify a custom database name (e.g. mydb) to create an additional database.
+            - "The name of the first database to be created when the cluster is created."
         required: false
-    db_port:
+    ClusterIdentifier:
         description:
-            - Port number on which the database accepts connections.
+            - "A unique identifier for the cluster."
         required: true
-        default: null
-    db_user:
+    ClusterType:
         description:
-            - Name of master user for your cluster. (e.g. awsuser)
-        required: true
-        default: null
-    user_pw:
+            - "The type of the cluster. When cluster type is specified as single-node or multi-node"
         required: false
-        default: ''
-    node_type:
+        default: multi-node
+        choices : ['single-node', 'multi-node']
+    NodeType:
+        description:
+            - "The node type to be provisioned for the cluster."
         required: true
-        default: Single Node
-    cluster_type:
+        choices : ['ds1.xlarge',  'ds1.8xlarge',  'ds2.xlarge', 'ds2.8xlarge', 'dc1.xlarge', 'dc1.8xlarge']
+    MasterUsername:
+        description:
+            - "The user name associated with the master user account for the cluster that is being created."
         required: true
-    num_nodes:
+    MasterUserPassword:
+        description:
+            - "The password associated with the master user account for the cluster that is being created."
         required: true
+    ClusterSecurityGroups:
+        description:
+            - "A list of security groups to be associated with this cluster."
+        required: false
+        default: "The default cluster security group for Amazon Redshift."
+    VpcSecurityGroupIds:
+        description:
+            - "A list of Virtual Private Cloud (VPC) security groups to be associated with the cluster."
+        required: false
+        default: "The default VPC security group is associated with the cluster."
+    ClusterSubnetGroupName:
+        description:
+            - "The name of a cluster subnet group to be associated with this cluster."
+        required: false
+        default: "If this parameter is not provided the resulting cluster will be deployed outside virtual private cloud (VPC)."
+    AvailabilityZone:
+        description:
+            - "The EC2 Availability Zone (AZ) in which you want Amazon Redshift to provision the cluster."
+        required: false
+        default: "A random, system-chosen Availability Zone in the region that is specified by the endpoint."
+    PreferredMaintenanceWindow:
+        description:
+            - "The weekly time range (in UTC) during which automated cluster maintenance can occur."
+        required: false
+        default: "A 30-minute window selected at random from an 8-hour block of time per region, occurring on a random day of the week."
+    ClusterParameterGroupName:
+        description:
+            - "The name of the parameter group to be associated with this cluster."
+        required: false
+        default: "The default Amazon Redshift cluster parameter group."
+    AutomatedSnapshotRetentionPeriod:
+        description:
+            - "The number of days that automated snapshots are retained."
+        required: false
         default: 1
-    param_group:
-        required: true
-        default: default.redshift-1.0
-    encrypt:
-        required: true
-        default: None
-    vpc:
-        required: true
-        description: The identifier of the VPC in which you want to create your cluster
-    sub_group:
-        required: true
-        description: Selected Cluster Subnet Group may limit the choice of Availability Zones
-    public:
-        required: true
-    zone:
+    Port:
+        description:
+            - "The port number on which the cluster accepts incoming connections."
         required: false
-        default: no preference
-    sec_group:
+        default: 5439
+    NumberOfNodes:
+        description:
+            - "The number of compute nodes in the cluster."
         required: false
-        default: default
-    CloudWatch:
+        default: If you don't specify this parameter, you get a single-node cluster."
+    PubliclyAccessible:
+        description:
+            - "If true , the data in the cluster is encrypted at rest."
         required: false
-        default: no
+    Encrypted:
+        description:
+            - "If true , the cluster can be accessed from a public network."
+        required: false
+        default: false
+    HsmClientCertificateIdentifier:
+        description:
+            - "Specifies the name of the HSM client certificate the Amazon Redshift cluster uses to retrieve the data encryption keys stored in an HSM."
+        required: false
+    HsmConfigurationIdentifier:
+        description:
+            - "Specifies the name of the HSM configuration that contains the information the Amazon Redshift cluster can use to retrieve and store keys in an HSM."
+        required: false
+    ElasticIp:
+        description:
+            - "The Elastic IP (EIP) address for the cluster."
+        required: false
+    KmsKeyId:
+        description:
+            - "The AWS Key Management Service (KMS) key ID of the encryption key that you want to use to encrypt data in the cluster."
+        required: false
+    Tags:
+        description:
+            - "A list of tag instances."
+        required: false
+    SkipFinalClusterSnapshot:
+        description:
+            - "A list of tag instances."
+        required: false
+        default: true
+    FinalClusterSnapshotIdentifier:
+        description:
+            - "The identifier of the final snapshot that is to be created immediately before deleting the cluster."
+        required: false
+    SnapshotIdentifier:
+        description:
+            - "A unique identifier for the snapshot that you are requesting. "
+        required: true (for snapshot command)
 
 author: "Ben Parli"
 '''
 
-'''EXAMPLES = '''
-# TODO '''
+EXAMPLES = '''
+# Note: These examples do not set authentication details, see the AWS Guide for details.
+- redshift:
+    Command: create
+    ClusterIdentifier= mycluster
+    DBName: test
+    ClusterType: single-node
+    NodeType: dw1.xlarge
+    MasterUsername: testuser
+    MasterUserPassword: passworD1234
+    AvailabilityZone: us-west-2b
+
+- redshift:
+    Command: create
+    ClusterIdentifier=mycluster
+    DBName: test
+    ClusterType: multi-node
+    NumberOfNodes: 4
+    NodeType: dw1.xlarge
+    MasterUsername: testuser
+    MasterUserPassword: passworD1234
+    AvailabilityZone: us-west-2b
+    tags:
+      example1: tag1
+      example2: tag2
+
+- redshift:
+    Command: snapshot
+    ClusterIdentifier=mycluster
+    SnapshotIdentifier=mysnapshot
+
+- redshift:
+    Command: delete
+    ClusterIdentifier=mycluster
+    FinalClusterSnapshotIdentifier=finalsnapshot
+
+- redshift:
+    Command: delete
+    SnapshotIdentifier=mysnapshot
+'''
 
 import time
 
@@ -85,39 +183,42 @@ except ImportError:
 class RedshiftConnection:
     def __init__(self, module, region, **aws_connect_params):
         try:
-            self.connection = boto3.client('redshift', aws_access_key_id=aws_connect_params['aws_access_key_id'], aws_secret_access_key=aws_connect_params['aws_secret_access_key'])
+            self.connection = boto3.client('redshift', aws_access_key_id=aws_connect_params['aws_access_key_id'],
+                                           aws_secret_access_key=aws_connect_params['aws_secret_access_key'])
         except:
              module.fail_json(msg="couldn't connect to redshift")
 
     def create_cluster(self, cluster_identifier, node_type, master_username, master_user_password, **params):
         try:
-            result = self.connection.create_cluster(ClusterIdentifier=cluster_identifier, NodeType=node_type, MasterUsername=master_username, \
+            result = self.connection.create_cluster(ClusterIdentifier=cluster_identifier,
+                                                    NodeType=node_type, MasterUsername=master_username,
                                                     MasterUserPassword=master_user_password, **params)
             return self.get_cluster(result['Cluster']['ClusterIdentifier'])
         except botocore.exceptions.ClientError as e:
-            raise RedshiftException(e)
+             self.module.fail_json(msg="Failed to create cluster: %s" % e.message)
 
     def create_cluster_snapshot(self, cluster_identifier, snapshot_identifier, **params):
         try:
-            result = self.connection.create_cluster_snapshot(ClusterIdentifier=cluster_identifier, SnapshotIdentifier = snapshot_identifier,
+            result = self.connection.create_cluster_snapshot(ClusterIdentifier=cluster_identifier,
+                                                             SnapshotIdentifier = snapshot_identifier,
                                                              **params)
             return self.get_snapshot(snapshot_identifier)
         except botocore.exceptions.ClientError as e:
-            raise RedshiftException(e)
+            self.module.fail_json(msg="Failed to create snapshot: %s" % e.message)
 
     def delete_cluster(self, cluster_identifier, **params):
         try:
             result = self.connection.delete_cluster(**params)
             return RedshiftCluster(result['Cluster'])
         except botocore.exceptions.ClientError as e:
-            raise RedshiftException(e)
+            self.module.fail_json(msg="Failed to delete cluster: %s" % e.message)
 
     def delete_cluster_snapshot(self, snapshot, **params):
         try:
             result = self.connection.delete_cluster_snapshot(SnapshotIdentifier=snapshot)
             return RedshiftSnapshot(result['Snapshot'])
         except botocore.exceptions.ClientError as e:
-            raise RedshiftException(e)
+            self.module.fail_json(msg="Failed to delete snapshot: %s" % e.message)
 
     def get_cluster(self, cluster_id):
         try:
@@ -241,10 +342,12 @@ def validate_params(required_vars, valid_vars, module):
 
 def create_cluster(module, conn):
     required_vars = ['ClusterIdentifier', 'NodeType', 'MasterUsername', 'MasterUserPassword']
-    valid_vars = ['DBName', 'ClusterSecurityGroups', 'VpcSecurityGroupIds', 'ClusterSubnetGroupName', 'AvailabilityZone', \
-                  'PreferredMaintenanceWindow', 'ClusterParameterGroupName', 'AutomatedSnapshotRetentionPeriod', \
-                  'Port', 'NumberOfNodes', 'Encrypted', 'ElasticIp', 'HsmClientCertificateIdentifier', 'HsmConfigurationIdentifier',\
-                  'ElasticIp', 'KmsKeyId', 'Tags', 'PubliclyAccessible', 'ClusterType']
+    valid_vars = ['DBName', 'ClusterSecurityGroups', 'VpcSecurityGroupIds',
+                  'ClusterSubnetGroupName', 'AvailabilityZone', 'PreferredMaintenanceWindow',
+                  'ClusterParameterGroupName', 'AutomatedSnapshotRetentionPeriod',
+                  'Port', 'NumberOfNodes', 'Encrypted', 'ElasticIp', 'HsmClientCertificateIdentifier',
+                  'HsmConfigurationIdentifier', 'ElasticIp', 'KmsKeyId', 'Tags', 'PubliclyAccessible',
+                  'ClusterType']
 
     params = validate_params(required_vars, valid_vars, module)
     cluster = module.params.get('ClusterIdentifier')
@@ -253,13 +356,14 @@ def create_cluster(module, conn):
         changed = False
     else:
         try:
-            result = conn.create_cluster(cluster, module.params.get('NodeType'), module.params.get('MasterUsername'), \
+            result = conn.create_cluster(cluster, module.params.get('NodeType'),
+                                         module.params.get('MasterUsername'),
                                         module.params.get('MasterUserPassword'), **params)
             changed = True
         except RedshiftException, e:
-            module.fail_json(msg="Failed to create instance: %s" % e.message)
+            module.fail_json(msg="Failed to create cluster: %s" % e.message)
 
-    module.exit_json(changed=changed, instance=result.get_data())
+    module.exit_json(changed=changed, cluster=result.get_data())
 
 def create_cluster_snapshot(module, conn):
     required_vars = ['SnapshotIdentifier', 'ClusterIdentifier']
@@ -277,13 +381,14 @@ def create_cluster_snapshot(module, conn):
             result = conn.create_cluster_snapshot(cluster, snapshot, **params)
             changed = True
         except RedshiftException, e:
-            module.fail_json(msg="Failed to create instance: %s" % e.message)
+            module.fail_json(msg="Failed to create snapshot: %s" % e.message)
 
-    module.exit_json(changed=changed, instance=result.get_data())
+    module.exit_json(changed=changed, snapshot=result.get_data())
 
 def delete_cluster(module, conn):
     required_vars = []
-    valid_vars = ['ClusterIdentifier', 'SkipFinalClusterSnapshot', 'FinalClusterSnapshotIdentifier', 'SnapshotIdentifier']
+    valid_vars = ['ClusterIdentifier', 'SkipFinalClusterSnapshot', 'FinalClusterSnapshotIdentifier',
+                  'SnapshotIdentifier']
 
     params = validate_params(required_vars, valid_vars, module)
     cluster = module.params.get('ClusterIdentifier')
@@ -299,9 +404,9 @@ def delete_cluster(module, conn):
     try:
         if cluster:
             if snapshot:
-                params["SkipFinalClusterSnapshot"] = False
-                params["FinalSnapshotId"] = snapshot
-            else:
+                params['SkipFinalClusterSnapshot'] = False
+                params['FinalClusterSnapshotIdentifier'] = module.params.get('FinalClusterSnapshotIdentifier')
+            elif 'FinalClusterSnapshotIdentifier' not in params:
                 params["SkipFinalClusterSnapshot"] = True
             result = conn.delete_cluster(cluster, **params)
         else:
@@ -320,7 +425,7 @@ def main():
             NodeType         = dict(choices=['ds1.xlarge',  'ds1.8xlarge',  'ds2.xlarge', 'ds2.8xlarge', 'dc1.xlarge', 'dc1.8xlarge'], required=False),
             MasterUsername   = dict(required=False),
             MasterUserPassword = dict(required=False),
-            ClusterSecurityGroups = dict(required=False),
+            ClusterSecurityGroups = dict(required=False, type='list'),
             VpcSecurityGroupIds = dict(required=False, type='list'),
             ClusterSubnetGroupName = dict(required=False),
             AvailabilityZone = dict(required=False),
@@ -328,7 +433,7 @@ def main():
             ClusterParameterGroupName = dict(required=False),
             AutomatedSnapshotRetentionPeriod = dict(required=False),
             Port               = dict(required=False, type='int'),
-            NumberOfNodes    = dict(required=False, type=int),
+            NumberOfNodes    = dict(required=False, type='int'),
             PubliclyAccessible = dict(required=False),
             Encrypted          = dict(required=False),
             HsmClientCertificateIdentifier = dict(required=False),
@@ -344,15 +449,9 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
     )
-
     if not HAS_BOTO:
         module.fail_json(msg='boto required for this module')
-
     region, ec2_url, aws_connect_params = get_aws_connection_info(module, boto3=True)
-    #aws_connect_params = dict(aws_access_key_id='AKIAJRUYQ4BZZHV3AB2A', aws_secret_access_key='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',\
-    #   security_token=None)
-    #region = 'us-west-2'
-
     try:
         conn = RedshiftConnection(module, region, **aws_connect_params)
     except:
